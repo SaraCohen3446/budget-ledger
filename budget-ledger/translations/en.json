@@ -1,0 +1,41 @@
+{
+  "ui": {
+    "dir": "rtl",
+    "locale": "he-IL",
+    "eyebrow": "Monthly Budget Ledger",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "loading": "Loading...",
+    "incomeLabel": "Main income",
+    "addIncomeBtn": "+ Add income",
+    "incomeSourcePlaceholder": "Income source (e.g. Freelance)",
+    "removeIncome": "Remove",
+    "quickAddLabel": "Quick add",
+    "quickAddName": "Expense name",
+    "quickAddAmount": "Amount",
+    "quickAddBtn": "Add",
+    "notesLabel": "Or paste your note from iPhone here",
+    "notesPlaceholder": "# Rent\nRent - 3500\n\n# Food\nGroceries - 250\nRestaurant - 120",
+    "malformed": "{n} line(s) not recognized — use the format \"name - amount\"",
+    "breakdown": "Breakdown by category",
+    "income": "Income",
+    "totalExpenses": "Total expenses",
+    "remaining": "Remaining",
+    "saveBtn": "Save this month",
+    "saved": "Saved ✓",
+    "saveFailed": "Save failed",
+    "storageWarn": "Saving isn't available right now — data is shown but won't persist.",
+    "defaultCategory": "General",
+    "currency": "$"
+  },
+  "categories": [
+    { "name": "Rent", "subs": ["Rent", "Property tax", "HOA", "Electricity", "Water", "Gas"] },
+    { "name": "Car", "subs": ["Fuel", "Insurance", "Inspection", "Parking", "Repairs"] },
+    { "name": "Clothes", "subs": [] },
+    { "name": "Food", "subs": ["Groceries", "Restaurant", "Delivery", "Coffee"] },
+    { "name": "Transport", "subs": ["Bus", "Train", "Taxi"] },
+    { "name": "Entertainment", "subs": ["Cinema", "Subscriptions", "Outings"] },
+    { "name": "Health", "subs": ["Doctor", "Medication", "Health insurance"] },
+    { "name": "Other", "subs": [] }
+  ]
+}

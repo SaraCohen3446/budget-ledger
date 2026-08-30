@@ -19,6 +19,8 @@ window.storage = {
 
 const { useState, useEffect, useMemo, useCallback } = React;
 
+const DEFAULT_LANG = "he";
+
 function getMonthFormatter(locale) {
   return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" });
 }
@@ -38,83 +40,14 @@ function getCurrencySymbol(locale) {
   }).formatToParts(0).find((part) => part.type === "currency")?.value || (locale.startsWith("he") ? "₪" : "$");
 }
 
-const QUICK_CATEGORIES = {
-  he: [
-    { name: "דירה", subs: ["שכירות", "ארנונה", "ועד בית", "חשמל", "מים", "גז"] },
-    { name: "רכב", subs: ["דלק", "ביטוח", "טסט", "חניה", "תיקונים"] },
-    { name: "בגדים", subs: [] },
-    { name: "מזון", subs: ["סופר", "מסעדה", "משלוחים", "בית קפה"] },
-    { name: "תחבורה", subs: ["אוטובוס", "רכבת", "מונית"] },
-    { name: "בידור", subs: ["קולנוע", "מנויים", "בילויים"] },
-    { name: "בריאות", subs: ["רופא", "תרופות", "ביטוח בריאות"] },
-    { name: "אחר", subs: [] },
-  ],
-  en: [
-    { name: "Rent", subs: ["Rent", "Property tax", "HOA", "Electricity", "Water", "Gas"] },
-    { name: "Car", subs: ["Fuel", "Insurance", "Inspection", "Parking", "Repairs"] },
-    { name: "Clothes", subs: [] },
-    { name: "Food", subs: ["Groceries", "Restaurant", "Delivery", "Coffee"] },
-    { name: "Transport", subs: ["Bus", "Train", "Taxi"] },
-    { name: "Entertainment", subs: ["Cinema", "Subscriptions", "Outings"] },
-    { name: "Health", subs: ["Doctor", "Medication", "Health insurance"] },
-    { name: "Other", subs: [] },
-  ],
-};
-
-const T = {
-  he: {
-    dir: "rtl", locale: "he-IL",
-    eyebrow: "יומן תקציב חודשי",
-    prevMonth: "חודש קודם", nextMonth: "חודש הבא",
-    loading: "טוען...",
-    incomeLabel: "הכנסה עיקרית",
-    addIncomeBtn: "+ הוספת הכנסה",
-    incomeSourcePlaceholder: "תיאור ההכנסה (למשל: פרילנס)",
-    removeIncome: "הסרה",
-    quickAddLabel: "הוספה מהירה",
-    quickAddName: "שם ההוצאה",
-    quickAddAmount: "סכום",
-    quickAddBtn: "הוספה",
-    notesLabel: "או הדביקו כאן את הפתק מהאייפון",
-    notesPlaceholder: "# שכירות\nשכירות - 3500\n\n# מזון\nסופר - 250\nמסעדה - 120",
-    malformed: (n) => `${n} שורות לא זוהו — ודאו פורמט "שם - סכום"`,
-    breakdown: "פירוט לפי קטגוריה",
-    income: "הכנסה",
-    totalExpenses: 'סה"כ הוצאות',
-    remaining: "נותר",
-    saveBtn: "שמירת החודש",
-    saved: "נשמר ✓",
-    saveFailed: "שמירה נכשלה",
-    storageWarn: "השמירה לא זמינה כרגע — הנתונים עדיין מוצגים אך לא יישמרו.",
-    defaultCategory: "כללי",
-  },
-  en: {
-    dir: "ltr", locale: "en-US",
-    eyebrow: "Monthly Budget Ledger",
-    prevMonth: "Previous month", nextMonth: "Next month",
-    loading: "Loading...",
-    incomeLabel: "Main income",
-    addIncomeBtn: "+ Add income",
-    incomeSourcePlaceholder: "Income source (e.g. Freelance)",
-    removeIncome: "Remove",
-    quickAddLabel: "Quick add",
-    quickAddName: "Expense name",
-    quickAddAmount: "Amount",
-    quickAddBtn: "Add",
-    notesLabel: "Or paste your note from iPhone here",
-    notesPlaceholder: "# Rent\nRent - 3500\n\n# Food\nGroceries - 250\nRestaurant - 120",
-    malformed: (n) => `${n} line(s) not recognized — use the format "name - amount"`,
-    breakdown: "Breakdown by category",
-    income: "Income",
-    totalExpenses: "Total expenses",
-    remaining: "Remaining",
-    saveBtn: "Save this month",
-    saved: "Saved ✓",
-    saveFailed: "Save failed",
-    storageWarn: "Saving isn't available right now — data is shown but won't persist.",
-    defaultCategory: "General",
-  },
-};
+async function loadTranslation(lang) {
+  const file = `translations/${lang}.json`;
+  const response = await fetch(file);
+  if (!response.ok) {
+    throw new Error(`Could not load ${file}`);
+  }
+  return response.json();
+}
 
 function monthKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -218,6 +151,7 @@ async function saveMonthData(monthId, data) {
 
 function BudgetLedger() {
   const [lang, setLang] = useState(getBrowserLanguage());
+  const [translations, setTranslations] = useState(null);
   const [monthsList, setMonthsList] = useState([monthKey(new Date())]);
   const [activeMonth, setActiveMonth] = useState(monthKey(new Date()));
   const [loading, setLoading] = useState(true);
@@ -233,17 +167,29 @@ function BudgetLedger() {
   const [quickName, setQuickName] = useState("");
   const [quickAmount, setQuickAmount] = useState("");
 
-  const t = T[lang] || T.he;
-  const currencySymbol = getCurrencySymbol(t.locale);
+  const t = (translations && translations.ui) || { dir: "rtl", locale: "he-IL", defaultCategory: "כללי" };
+  const currencySymbol = getCurrencySymbol(t.locale || "he-IL");
+  const categoriesForLang = translations && translations.categories ? translations.categories : [];
 
   useEffect(() => {
     (async () => {
-      const savedLang = await loadLanguage();
-      if (savedLang) {
-        setLang(savedLang);
-      } else {
-        setLang(getBrowserLanguage());
+      try {
+        const savedLang = await loadLanguage();
+        const selectedLang = savedLang || getBrowserLanguage() || DEFAULT_LANG;
+        setLang(selectedLang);
+        const data = await loadTranslation(selectedLang);
+        setTranslations(data);
+      } catch {
+        const fallbackLang = DEFAULT_LANG;
+        setLang(fallbackLang);
+        try {
+          const data = await loadTranslation(fallbackLang);
+          setTranslations(data);
+        } catch {
+          setTranslations({ ui: { dir: "rtl", locale: "he-IL", defaultCategory: "כללי" }, categories: [] });
+        }
       }
+
       const index = await loadMonthsIndex();
       const initial = index.length ? Array.from(new Set([...index, monthKey(new Date())])).sort() : [monthKey(new Date())];
       setMonthsList(initial);
@@ -273,7 +219,14 @@ function BudgetLedger() {
 
   const changeLang = async (newLang) => {
     setLang(newLang);
-    await saveLanguage(newLang);
+    try {
+      const data = await loadTranslation(newLang);
+      setTranslations(data);
+      await saveLanguage(newLang);
+    } catch {
+      setStatus(newLang === "he" ? "שגיאה בטעינת השפה" : "Language load failed");
+      setTimeout(() => setStatus(""), 2000);
+    }
   };
 
   const parsed = useMemo(() => parseExpenses(notesText, t.defaultCategory), [notesText, t.defaultCategory]);
@@ -427,7 +380,7 @@ function BudgetLedger() {
             <div style={styles.fieldBlock}>
               <label style={styles.label}>{t.quickAddLabel}</label>
               <div style={styles.chipsRow}>
-                {QUICK_CATEGORIES[lang].map((cat) => (
+                {categoriesForLang.map((cat) => (
                   <button key={cat.name} onClick={() => handleSelectCategory(cat.name)}
                     style={{ ...styles.chip, ...(quickCategory === cat.name ? styles.chipActive : {}) }}>
                     {cat.name}
@@ -435,9 +388,9 @@ function BudgetLedger() {
                 ))}
               </div>
 
-              {quickCategory && QUICK_CATEGORIES[lang].find((c) => c.name === quickCategory)?.subs.length > 0 && (
+              {quickCategory && categoriesForLang.find((c) => c.name === quickCategory)?.subs.length > 0 && (
                 <div style={styles.subChipsRow}>
-                  {QUICK_CATEGORIES[lang].find((c) => c.name === quickCategory).subs.map((sub) => (
+                  {categoriesForLang.find((c) => c.name === quickCategory).subs.map((sub) => (
                     <button key={sub} onClick={() => handleSelectSub(sub)}
                       style={{ ...styles.subChip, ...(quickSub === sub ? styles.subChipActive : {}) }}>
                       {sub}
