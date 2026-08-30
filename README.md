@@ -23,10 +23,9 @@ only (not synced across devices, not shared between visitors).
 **Run locally:**
 
 cd budget-ledger
-python3 -m http.server 8000   # or: py -m http.server 8000 on Windows
+python3 -m http.server 4200   # or: py -m http.server 4200 on Windows
 
-Then open http://localhost:8000 — do not open index.html directly via
+Then open http://localhost:4200 — do not open index.html directly via
 double-click, since browsers block some required features on file:// URLs.
 
-**Deploy:** drag the `budget-ledger` folder (or connect this repo) to
-[Netlify](https://netlify.com) — no build command needed.
+**Deploy:** 
