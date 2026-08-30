@@ -19,10 +19,24 @@ window.storage = {
 
 const { useState, useEffect, useMemo, useCallback } = React;
 
-const MONTH_NAMES = {
-  he: ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"],
-  en: ["January","February","March","April","May","June","July","August","September","October","November","December"],
-};
+function getMonthFormatter(locale) {
+  return new Intl.DateTimeFormat(locale, { month: "long", year: "numeric" });
+}
+
+function getBrowserLanguage() {
+  const navLocale = (navigator && navigator.language) || "en-US";
+  return navLocale.toLowerCase().startsWith("he") ? "he" : "en";
+}
+
+function getCurrencySymbol(locale) {
+  const currency = locale.startsWith("he") ? "ILS" : "USD";
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    currencyDisplay: "narrowSymbol",
+    maximumFractionDigits: 0,
+  }).formatToParts(0).find((part) => part.type === "currency")?.value || (locale.startsWith("he") ? "₪" : "$");
+}
 
 const QUICK_CATEGORIES = {
   he: [
@@ -73,7 +87,6 @@ const T = {
     saveFailed: "שמירה נכשלה",
     storageWarn: "השמירה לא זמינה כרגע — הנתונים עדיין מוצגים אך לא יישמרו.",
     defaultCategory: "כללי",
-    currency: "₪",
   },
   en: {
     dir: "ltr", locale: "en-US",
@@ -100,7 +113,6 @@ const T = {
     saveFailed: "Save failed",
     storageWarn: "Saving isn't available right now — data is shown but won't persist.",
     defaultCategory: "General",
-    currency: "$",
   },
 };
 
@@ -109,7 +121,8 @@ function monthKey(d) {
 }
 function monthLabel(key, lang) {
   const [y, m] = key.split("-").map(Number);
-  return `${MONTH_NAMES[lang][m - 1]} ${y}`;
+  const locale = lang === "he" ? "he-IL" : "en-US";
+  return getMonthFormatter(locale).format(new Date(y, m - 1, 1));
 }
 function shiftMonth(key, delta) {
   const [y, m] = key.split("-").map(Number);
@@ -204,7 +217,7 @@ async function saveMonthData(monthId, data) {
 }
 
 function BudgetLedger() {
-  const [lang, setLang] = useState("he");
+  const [lang, setLang] = useState(getBrowserLanguage());
   const [monthsList, setMonthsList] = useState([monthKey(new Date())]);
   const [activeMonth, setActiveMonth] = useState(monthKey(new Date()));
   const [loading, setLoading] = useState(true);
@@ -220,12 +233,17 @@ function BudgetLedger() {
   const [quickName, setQuickName] = useState("");
   const [quickAmount, setQuickAmount] = useState("");
 
-  const t = T[lang];
+  const t = T[lang] || T.he;
+  const currencySymbol = getCurrencySymbol(t.locale);
 
   useEffect(() => {
     (async () => {
       const savedLang = await loadLanguage();
-      if (savedLang) setLang(savedLang);
+      if (savedLang) {
+        setLang(savedLang);
+      } else {
+        setLang(getBrowserLanguage());
+      }
       const index = await loadMonthsIndex();
       const initial = index.length ? Array.from(new Set([...index, monthKey(new Date())])).sort() : [monthKey(new Date())];
       setMonthsList(initial);
@@ -386,7 +404,7 @@ function BudgetLedger() {
             <div style={styles.fieldBlock}>
               <label style={styles.label}>{t.incomeLabel}</label>
               <div style={styles.incomeRow}>
-                <span style={styles.currencyMark}>{t.currency}</span>
+                <span style={styles.currencyMark}>{currencySymbol}</span>
                 <input type="text" inputMode="decimal" value={income}
                   onChange={(e) => setIncome(e.target.value.replace(/[^\d.,]/g, ""))}
                   placeholder="0" style={{ ...styles.incomeInput, textAlign: t.dir === "rtl" ? "right" : "left" }} />
@@ -454,7 +472,7 @@ function BudgetLedger() {
                   <div key={cat} style={styles.ledgerLine}>
                     <span style={styles.ledgerCat}>{cat}</span>
                     <span style={styles.dots} />
-                    <span style={styles.ledgerAmt}>{fmt(data.total, t.locale)} {t.currency}</span>
+                    <span style={styles.ledgerAmt}>{fmt(data.total, t.locale)} {currencySymbol}</span>
                   </div>
                 ))}
               </div>
@@ -463,15 +481,15 @@ function BudgetLedger() {
             <div style={styles.summaryBlock}>
               <div style={styles.summaryRow}>
                 <span>{t.income}</span>
-                <span style={styles.mono}>{fmt(totalIncome, t.locale)} {t.currency}</span>
+                <span style={styles.mono}>{fmt(totalIncome, t.locale)} {currencySymbol}</span>
               </div>
               <div style={styles.summaryRow}>
                 <span>{t.totalExpenses}</span>
-                <span style={styles.mono}>{fmt(parsed.total, t.locale)} {t.currency}</span>
+                <span style={styles.mono}>{fmt(parsed.total, t.locale)} {currencySymbol}</span>
               </div>
               <div style={{ ...styles.remainingBox, ...(overBudget ? styles.remainingBoxNegative : styles.remainingBoxPositive) }}>
                 <span>{t.remaining}</span>
-                <span style={styles.remainingAmt}>{fmt(remaining, t.locale)} {t.currency}</span>
+                <span style={styles.remainingAmt}>{fmt(remaining, t.locale)} {currencySymbol}</span>
               </div>
             </div>
 
